@@ -35,10 +35,21 @@ for i in range(0, 4):  # Assuming files are named sleep_turtle_0.png to sleep_tu
     scaled_frame = pygame.transform.scale(frame, (scaled_width, scaled_height))
     sleeping_frames.append(scaled_frame)
 
+# Load Walking Animation Frames
+walking_frames = []
+for i in range(0, 4):  # Assuming files are named turtle_walk0.png to turtle_walk3.png
+    frame = pygame.image.load(f"assets/turtle_walk{i}.png").convert_alpha()
+    frame.set_colorkey(colorkey)
+    scaled_width = frame.get_width() * 4  # Scale the frame (4x size)
+    scaled_height = frame.get_height() * 4
+    scaled_frame = pygame.transform.scale(frame, (scaled_width, scaled_height))
+    walking_frames.append(scaled_frame)
+
 # Animation variables
 current_frame = 0
 frame_timer = 0
 frame_delay = 150  # Delay between frames in milliseconds
+state = "idle"  # Initialize state
 
 # Position and movement variables
 turtle_rect = idle_frames[0].get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2))
@@ -57,7 +68,7 @@ clock = pygame.time.Clock()
 # Define turtle states
 sleeping = False
 idle_time = 0  # Time the turtle has been idle (in milliseconds)
-idle_threshold = 6000  # 1 minute of inactivity
+idle_threshold = 5000  # 5 seconds of inactivity
 
 
 def move_toward_target(rect, target, speed):
@@ -104,7 +115,7 @@ def draw_score(screen, score):
 
 
 def main():
-    global current_frame, frame_timer, facing_left, score, sleeping, idle_time, idle_frames, turtle_rect
+    global current_frame, frame_timer, facing_left, score, sleeping, idle_time, idle_frames, walking_frames, state, turtle_rect
 
     while True:
         dt = clock.tick(60)  # Get the time passed since the last frame
@@ -121,19 +132,21 @@ def main():
                     sleeping = False  # Wake the turtle
                     idle_time = 0  # Reset idle time
 
-
-        # Handle frame timing for animation
+        # Handle animation frame updates
         frame_timer += dt
         if frame_timer >= frame_delay:
-            if sleeping:
-                current_frame = (current_frame + 1) % len(sleeping_frames)  # Loop through sleeping frames
-            else:
-                current_frame = (current_frame + 1) % len(idle_frames)  # Loop through idle frames
+            if state == "sleeping":
+                current_frame = (current_frame + 1) % len(sleeping_frames)
+            elif state == "walking":
+                current_frame = (current_frame + 1) % len(walking_frames)
+            elif state == "idle":
+                current_frame = (current_frame + 1) % len(idle_frames)
             frame_timer = 0
 
-        # If sleeping, skip movement logic
+        # Determine turtle state and handle movement
         if sleeping:
-            idle_time = 0  # Reset idle time while sleeping
+            state = "sleeping"
+            idle_time = 0
         else:
             if seaweed_list:
                 closest_seaweed = find_closest_seaweed(turtle_rect, seaweed_list)
@@ -142,46 +155,49 @@ def main():
                 # Check for direction flip
                 if target_pos[0] < turtle_rect.centerx and not facing_left:
                     facing_left = True
-                    idle_frames = [pygame.transform.flip(frame, True, False) for frame in idle_frames]
+                    walking_frames = [pygame.transform.flip(frame, True, False) for frame in walking_frames]
                 elif target_pos[0] > turtle_rect.centerx and facing_left:
                     facing_left = False
-                    idle_frames = [pygame.transform.flip(frame, True, False) for frame in idle_frames]
+                    walking_frames = [pygame.transform.flip(frame, True, False) for frame in walking_frames]
 
                 # Move turtle toward target
-                turtle_rect = move_toward_target(turtle_rect, target_pos, speed)
+                if turtle_rect.center != target_pos:
+                    turtle_rect = move_toward_target(turtle_rect, target_pos, speed)
+                    state = "walking"  # Turtle is moving
+                else:
+                    state = "idle"  # Turtle stops moving
 
                 # Check for collision (eating the seaweed)
                 if closest_seaweed.check_eaten(turtle_rect):
-                    seaweed_list.remove(closest_seaweed)  # Remove the eaten seaweed
-                    score += 1  # Increase score by 1 when seaweed is eaten
-
-                idle_time = 0  # Reset idle time if the turtle moves
+                    seaweed_list.remove(closest_seaweed)
+                    score += 1
+                    idle_time = 0  # Reset idle time
             else:
-                idle_time += dt  # Increment idle time if no seaweed is present
+                idle_time += dt
+                if idle_time >= idle_threshold:
+                    state = "sleeping"
+                else:
+                    state = "idle"
 
-            # Put the turtle to sleep after 1 minute of inactivity
-            if idle_time >= idle_threshold:
-                sleeping = True
-                current_frame = 0  # Reset animation frame
-
-        # Clear screen with a beach-like yellow background
+        # Clear screen and draw the current frame
         screen.fill((255, 223, 186))  # Beach sand yellow
-
-        # Draw the current frame based on the current animation (idle or sleeping)
-        if sleeping:
+        if state == "sleeping":
             screen.blit(sleeping_frames[current_frame], turtle_rect)
-        else:
+        elif state == "walking":
+            screen.blit(walking_frames[current_frame], turtle_rect)
+        elif state == "idle":
             screen.blit(idle_frames[current_frame], turtle_rect)
 
-        # Draw all seaweed in the list
+        # Draw all seaweed
         for seaweed in seaweed_list:
             seaweed.draw(screen)
 
         # Draw the score
         draw_score(screen, score)
 
-        # Update display
+        # Update the display
         pygame.display.flip()
+
 
 
 # Run the game loop
