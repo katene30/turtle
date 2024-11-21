@@ -61,7 +61,7 @@ speed = 2  # Pixels per frame
 seaweed_list = []
 
 # Score variable
-score = Score() # Initialize score
+score = Score()  # Initialize score
 
 # Eating delay variables
 eat_delay = 1000  # 1 second delay when eating seaweed (in milliseconds)
@@ -121,6 +121,7 @@ def draw_score(screen, score_obj):
     font = pygame.font.SysFont("Arial", 24)
     score_text = font.render(f"Score: {score_obj.get_score()}", True, (0, 0, 0))  # Black text
     screen.blit(score_text, (10, 10))  # Position at the top-left corner
+
 # Load Eating Animation Frames
 eating_frames = []
 for i in range(0, 4):  # Assuming files are named eat_turtle0.png to eat_turtle3.png
@@ -223,6 +224,11 @@ def main():
 
         # Clear screen and draw the current frame
         screen.fill((255, 223, 186))  # Beach sand yellow
+        # Draw all seaweed first
+        for seaweed in seaweed_list:
+            seaweed.draw(screen)
+        
+        # Draw turtle based on its state
         if state == "eating":
             screen.blit(eating_frames[eating_frame], turtle_rect)
         elif state == "sleeping":
@@ -231,10 +237,6 @@ def main():
             screen.blit(walking_frames[current_frame], turtle_rect)
         elif state == "idle":
             screen.blit(idle_frames[current_frame], turtle_rect)
-
-        # Draw all seaweed
-        for seaweed in seaweed_list:
-            seaweed.draw(screen)
 
         # Draw the score
         draw_score(screen, score)
