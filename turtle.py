@@ -71,6 +71,7 @@ clock = pygame.time.Clock()
 
 # Define turtle states
 sleeping = False
+eating_seaweed = None  # Track the seaweed currently being eaten
 idle_time = 0  # Time the turtle has been idle (in milliseconds)
 idle_threshold = 5000  # 5 seconds of inactivity
 
@@ -166,12 +167,15 @@ def main():
         if eating:
             eating_timer += dt
             if eating_timer >= eating_delay:
-                eating_frame += 1
                 eating_timer = 0
+                eating_frame += 1
                 if eating_frame >= len(eating_frames):  # Animation complete
                     eating = False
                     eating_frame = 0  # Reset to first eating frame
                     state = "idle"  # Return to idle state
+                    if eating_seaweed:  # Remove the seaweed after animation
+                        seaweed_list.remove(eating_seaweed)
+                        eating_seaweed = None
             state = "eating"
 
         # Determine turtle state and handle movement
@@ -204,12 +208,12 @@ def main():
                     else:
                         # Check for collision (eating the seaweed)
                         if closest_seaweed.check_eaten(turtle_rect):
-                            seaweed_list.remove(closest_seaweed)
-                            score += 1
-                            eat_timer = eat_delay  # Start eating delay
-                            idle_time = 0  # Reset idle time
-                            eating = True  # Begin eating animation
-                            eating_frame = 0  # Reset animation to first frame
+                            if not eating:  # Start the eating process
+                                eat_timer = eat_delay  # Start eating delay
+                                idle_time = 0  # Reset idle time
+                                eating = True  # Begin eating animation
+                                eating_frame = 0  # Reset animation to first frame
+                                eating_seaweed = closest_seaweed  # Set the seaweed being eaten
                             
                 else:
                     idle_time += dt
