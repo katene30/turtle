@@ -3,6 +3,7 @@ import sys
 import random
 import math
 from seaweed import Seaweed  # Import the Seaweed class from seaweed.py
+from score import Score
 
 # Initialize Pygame
 pygame.init()
@@ -60,7 +61,7 @@ speed = 2  # Pixels per frame
 seaweed_list = []
 
 # Score variable
-score = 0  # Initialize score
+score = Score() # Initialize score
 
 # Eating delay variables
 eat_delay = 1000  # 1 second delay when eating seaweed (in milliseconds)
@@ -76,19 +77,22 @@ idle_time = 0  # Time the turtle has been idle (in milliseconds)
 idle_threshold = 5000  # 5 seconds of inactivity
 
 
-def move_toward_target(rect, target, speed):
+def move_toward_target(rect, target, speed, head_offset=50):
     """
     Move the turtle rect toward the target position at the given speed.
+    Stops when within the offset radius from the target.
     """
     dx, dy = target[0] - rect.centerx, target[1] - rect.centery
     distance = math.sqrt(dx**2 + dy**2)
 
-    if distance > speed:  # Avoid overshooting
-        rect.centerx += int(speed * (dx / distance))
-        rect.centery += int(speed * (dy / distance))
-    else:  # If close to target, snap to it
-        rect.center = target
-    return rect
+    if distance > head_offset:  # Only move if outside the offset radius
+        step_x = speed * (dx / distance)
+        step_y = speed * (dy / distance)
+        rect.centerx += int(step_x)
+        rect.centery += int(step_y)
+        return False  # Not yet at the target
+    else:
+        return True  # Close enough to stop moving
 
 
 def find_closest_seaweed(turtle_rect, seaweed_list):
@@ -110,12 +114,12 @@ def find_closest_seaweed(turtle_rect, seaweed_list):
     return closest_seaweed
 
 
-def draw_score(screen, score):
+def draw_score(screen, score_obj):
     """
     Draw the current score on the screen.
     """
     font = pygame.font.SysFont("Arial", 24)
-    score_text = font.render(f"Score: {score}", True, (0, 0, 0))  # Black text
+    score_text = font.render(f"Score: {score_obj.get_score()}", True, (0, 0, 0))  # Black text
     screen.blit(score_text, (10, 10))  # Position at the top-left corner
 # Load Eating Animation Frames
 eating_frames = []
@@ -134,8 +138,8 @@ eating_timer = 0  # Timer for eating animation
 eating_delay = 150  # Delay between eating frames (in milliseconds)
 
 def main():
-    global current_frame, frame_timer, facing_left, score, sleeping, idle_time, state, turtle_rect, walking_frames
-    global eat_timer, eating, eating_frame, eating_timer, eating_frames
+    global current_frame, frame_timer, facing_left, score, sleeping, idle_time, state, turtle_rect
+    global eat_timer, eating, eating_frame, eating_timer, eating_frames, walking_frames
 
     while True:
         dt = clock.tick(60)  # Get the time passed since the last frame
@@ -176,6 +180,7 @@ def main():
                     if eating_seaweed:  # Remove the seaweed after animation
                         seaweed_list.remove(eating_seaweed)
                         eating_seaweed = None
+                        score.increase()
             state = "eating"
 
         # Determine turtle state and handle movement
@@ -202,19 +207,13 @@ def main():
                         eating_frames = [pygame.transform.flip(frame, True, False) for frame in eating_frames]
 
                     # Move turtle toward target
-                    if turtle_rect.center != target_pos:
-                        turtle_rect = move_toward_target(turtle_rect, target_pos, speed)
-                        state = "walking"  # Turtle is moving
-                    else:
-                        # Check for collision (eating the seaweed)
+                    if move_toward_target(turtle_rect, target_pos, speed):
+                        # If close enough, start eating
                         if closest_seaweed.check_eaten(turtle_rect):
-                            if not eating:  # Start the eating process
-                                eat_timer = eat_delay  # Start eating delay
-                                idle_time = 0  # Reset idle time
-                                eating = True  # Begin eating animation
-                                eating_frame = 0  # Reset animation to first frame
-                                eating_seaweed = closest_seaweed  # Set the seaweed being eaten
-                            
+                            eat_timer = eat_delay  # Start eating delay
+                            eating = True  # Begin eating animation
+                            eating_seaweed = closest_seaweed
+                    state = "walking"
                 else:
                     idle_time += dt
                     if idle_time >= idle_threshold:
@@ -244,6 +243,5 @@ def main():
         pygame.display.flip()
 
 
-# Run the game loop
 if __name__ == "__main__":
     main()
